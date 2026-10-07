@@ -19,18 +19,13 @@ body {
     color: #222;
 }
 
-h1 {
+h1, h2 {
     text-align: center;
-    margin-bottom: 25px;
-}
-
-h2 {
-    margin-top: 0;
 }
 
 .section {
-    max-width: 700px;
-    margin: 0 auto 25px;
+    max-width: 750px;
+    margin: 0 auto 30px;
 }
 
 .contrast {
@@ -47,10 +42,11 @@ h2 {
     margin-bottom: 14px;
 }
 
-.words {
+.pair {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 button {
@@ -72,10 +68,8 @@ button:active {
 
 .play-all {
     width: 100%;
-    margin-top: 14px;
     background: #222;
     color: white;
-    font-size: 17px;
 }
 
 .quiz {
@@ -85,16 +79,21 @@ button:active {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.quiz-question {
-    font-size: 20px;
-    font-weight: bold;
+.score {
+    text-align: center;
+    font-size: 18px;
     margin-bottom: 18px;
+}
+
+.quiz-info {
+    text-align: center;
+    font-size: 18px;
+    margin-bottom: 15px;
 }
 
 .quiz-play {
     width: 100%;
     margin-bottom: 18px;
-    background: #e8e8e8;
 }
 
 .quiz-options {
@@ -105,7 +104,7 @@ button:active {
 
 .quiz-option {
     font-size: 22px;
-    padding: 16px;
+    padding: 18px;
 }
 
 .quiz-option.correct {
@@ -117,9 +116,10 @@ button:active {
 }
 
 .quiz-result {
-    margin-top: 15px;
+    text-align: center;
     font-size: 18px;
     font-weight: bold;
+    margin-top: 15px;
     min-height: 25px;
 }
 
@@ -131,12 +131,6 @@ button:active {
     display: none;
 }
 
-.score {
-    text-align: center;
-    margin-bottom: 15px;
-    font-size: 18px;
-}
-
 @media (max-width: 600px) {
     body {
         padding: 12px;
@@ -144,10 +138,6 @@ button:active {
 
     .quiz-options {
         grid-template-columns: 1fr;
-    }
-
-    button {
-        flex: 1;
     }
 }
 </style>
@@ -168,8 +158,8 @@ button:active {
     <div class="quiz">
         <div class="score" id="score">Score: 0 / 0</div>
 
-        <div class="quiz-question" id="quizQuestion">
-            Listen and choose the word you hear.
+        <div class="quiz-info" id="quizInfo">
+            Listen and choose which word you hear.
         </div>
 
         <button class="quiz-play" id="quizPlay">
@@ -190,38 +180,59 @@ button:active {
 const contrasts = [
     {
         ipa: "/oː/, /ɑː/",
-        words: ["mås", "mas", "sal", "sål"]
+        pairs: [
+            ["mås", "mas"],
+            ["sal", "sål"]
+        ]
     },
     {
         ipa: "/eː/, /iː/",
-        words: ["men", "min", "fel", "fil", "vet", "vit"]
+        pairs: [
+            ["men", "min"],
+            ["fel", "fil"],
+            ["vet", "vit"]
+        ]
     },
     {
         ipa: "/øː/, /uː/",
-        words: ["nöt", "not", "röt", "rot"]
+        pairs: [
+            ["nöt", "not"],
+            ["röt", "rot"]
+        ]
     },
     {
         ipa: "/ɵ/, /ʊ/",
-        words: ["full", "bott"]
+        pairs: [
+            ["full", "bott"]
+        ]
     },
     {
         ipa: "/ʏ/, /ɵ/",
-        words: ["lycka", "lucka", "syll", "full"]
+        pairs: [
+            ["lycka", "lucka"],
+            ["syll", "full"]
+        ]
     },
     {
         ipa: "/yː/, /uː/",
-        words: ["byta", "bota", "syl", "sol"]
+        pairs: [
+            ["byta", "bota"],
+            ["syl", "sol"]
+        ]
     },
     {
         ipa: "/øː/, /ʉː/",
-        words: ["mös", "mus"]
+        pairs: [
+            ["mös", "mus"]
+        ]
     }
 ];
 
 let voices = [];
 let score = 0;
 let total = 0;
-let currentQuestion = null;
+let currentPair = null;
+let currentAnswer = null;
 let answered = false;
 
 function loadVoices() {
@@ -232,14 +243,18 @@ speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
 function getSwedishVoice() {
-    return voices.find(v => v.lang.toLowerCase() === "sv-se") ||
-           voices.find(v => v.lang.toLowerCase().startsWith("sv"));
+    return voices.find(v =>
+        v.lang.toLowerCase() === "sv-se"
+    ) || voices.find(v =>
+        v.lang.toLowerCase().startsWith("sv")
+    );
 }
 
 function speak(word) {
     speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(word);
+
     utterance.lang = "sv-SE";
     utterance.rate = 0.8;
     utterance.pitch = 1;
@@ -253,17 +268,17 @@ function speak(word) {
     speechSynthesis.speak(utterance);
 }
 
-function playAll(words) {
+function playPair(pair) {
     speechSynthesis.cancel();
 
     const voice = getSwedishVoice();
 
-    words.forEach((word, index) => {
+    pair.forEach((word, index) => {
         setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance(word);
 
             utterance.lang = "sv-SE";
-            utterance.rate = 0.75;
+            utterance.rate = 0.8;
             utterance.pitch = 1;
 
             if (voice) {
@@ -283,24 +298,26 @@ function createContrast(item) {
     ipa.className = "ipa";
     ipa.textContent = item.ipa;
 
-    const words = document.createElement("div");
-    words.className = "words";
-
-    item.words.forEach(word => {
-        const button = document.createElement("button");
-        button.textContent = word;
-        button.onclick = () => speak(word);
-        words.appendChild(button);
-    });
-
-    const playAllButton = document.createElement("button");
-    playAllButton.className = "play-all";
-    playAllButton.textContent = "Play all";
-    playAllButton.onclick = () => playAll(item.words);
-
     container.appendChild(ipa);
-    container.appendChild(words);
-    container.appendChild(playAllButton);
+
+    item.pairs.forEach(pair => {
+        const pairContainer = document.createElement("div");
+        pairContainer.className = "pair";
+
+        pair.forEach(word => {
+            const button = document.createElement("button");
+            button.textContent = word;
+            button.onclick = () => speak(word);
+            pairContainer.appendChild(button);
+        });
+
+        const pairButton = document.createElement("button");
+        pairButton.textContent = "Play pair";
+        pairButton.onclick = () => playPair(pair);
+
+        pairContainer.appendChild(pairButton);
+        container.appendChild(pairContainer);
+    });
 
     return container;
 }
@@ -311,59 +328,62 @@ contrasts.forEach(item => {
         .appendChild(createContrast(item));
 });
 
-function getAllWords() {
-    return contrasts.flatMap(item => item.words);
+function getAllPairs() {
+    const result = [];
+
+    contrasts.forEach(contrast => {
+        contrast.pairs.forEach(pair => {
+            result.push({
+                ipa: contrast.ipa,
+                pair: pair
+            });
+        });
+    });
+
+    return result;
 }
 
-function getRandomQuestion() {
-    const allWords = getAllWords();
-    const answer = allWords[Math.floor(Math.random() * allWords.length)];
+function createQuizQuestion() {
+    const pairs = getAllPairs();
 
-    const contrast = contrasts.find(item =>
-        item.words.includes(answer)
-    );
+    const selected =
+        pairs[Math.floor(Math.random() * pairs.length)];
 
-    const otherWords = contrast.words
-        .filter(word => word !== answer);
+    currentPair = selected.pair;
 
-    const wrong = otherWords[
-        Math.floor(Math.random() * otherWords.length)
-    ];
+    currentAnswer =
+        currentPair[Math.floor(Math.random() * 2)];
 
-    return {
-        answer: answer,
-        options: [answer, wrong]
-    };
-}
-
-function startQuiz() {
-    currentQuestion = getRandomQuestion();
     answered = false;
 
     document.getElementById("quizResult").textContent = "";
     document.getElementById("nextButton").style.display = "none";
 
+    document.getElementById("quizInfo").textContent =
+        selected.ipa + " — Which word did you hear?";
+
     const options = document.getElementById("quizOptions");
     options.innerHTML = "";
 
-    currentQuestion.options
-        .sort(() => Math.random() - 0.5)
-        .forEach(word => {
-            const button = document.createElement("button");
+    const shuffled = [...currentPair]
+        .sort(() => Math.random() - 0.5);
 
-            button.className = "quiz-option";
-            button.textContent = word;
+    shuffled.forEach(word => {
+        const button = document.createElement("button");
 
-            button.onclick = () => answerQuiz(button, word);
+        button.className = "quiz-option";
+        button.textContent = word;
 
-            options.appendChild(button);
-        });
+        button.onclick = () => answerQuiz(button, word);
+
+        options.appendChild(button);
+    });
 
     document.getElementById("quizPlay").onclick = () => {
-        speak(currentQuestion.answer);
+        speak(currentAnswer);
     };
 
-    speak(currentQuestion.answer);
+    speak(currentAnswer);
 }
 
 function answerQuiz(button, word) {
@@ -372,34 +392,39 @@ function answerQuiz(button, word) {
     answered = true;
     total++;
 
-    const buttons = document.querySelectorAll(".quiz-option");
+    const buttons =
+        document.querySelectorAll(".quiz-option");
 
     buttons.forEach(btn => {
         btn.disabled = true;
 
-        if (btn.textContent === currentQuestion.answer) {
+        if (btn.textContent === currentAnswer) {
             btn.classList.add("correct");
         }
     });
 
-    if (word === currentQuestion.answer) {
+    if (word === currentAnswer) {
         score++;
-        document.getElementById("quizResult").textContent = "Correct";
+        document.getElementById("quizResult").textContent =
+            "Correct";
     } else {
         button.classList.add("wrong");
+
         document.getElementById("quizResult").textContent =
-            "Answer: " + currentQuestion.answer;
+            "Answer: " + currentAnswer;
     }
 
     document.getElementById("score").textContent =
         "Score: " + score + " / " + total;
 
-    document.getElementById("nextButton").style.display = "block";
+    document.getElementById("nextButton").style.display =
+        "block";
 }
 
-document.getElementById("nextButton").onclick = startQuiz;
+document.getElementById("nextButton").onclick =
+    createQuizQuestion;
 
-startQuiz();
+createQuizQuestion();
 </script>
 
 </body>
