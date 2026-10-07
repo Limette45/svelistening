@@ -7,91 +7,149 @@
 <title>Swedish Vowel Contrast Trainer</title>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
+* {
+    box-sizing: border-box;
+}
 
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+h2 {
+    margin-top: 0;
+}
+
+.section {
+    max-width: 700px;
+    margin: 0 auto 25px;
+}
+
+.contrast {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.ipa {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 14px;
+}
+
+.words {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+button {
+    border: none;
+    border-radius: 8px;
+    background: #e8e8e8;
+    padding: 12px 18px;
+    font-size: 19px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #d8d8d8;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+.play-all {
+    width: 100%;
+    margin-top: 14px;
+    background: #222;
+    color: white;
+    font-size: 17px;
+}
+
+.quiz {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.quiz-question {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 18px;
+}
+
+.quiz-play {
+    width: 100%;
+    margin-bottom: 18px;
+    background: #e8e8e8;
+}
+
+.quiz-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.quiz-option {
+    font-size: 22px;
+    padding: 16px;
+}
+
+.quiz-option.correct {
+    background: #b9e6b9;
+}
+
+.quiz-option.wrong {
+    background: #f0b9b9;
+}
+
+.quiz-result {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    min-height: 25px;
+}
+
+.next-button {
+    width: 100%;
+    margin-top: 15px;
+    background: #222;
+    color: white;
+    display: none;
+}
+
+.score {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+@media (max-width: 600px) {
     body {
-        margin: 0;
-        padding: 20px;
-        font-family: Arial, sans-serif;
-        background: #f5f5f5;
-        color: #222;
+        padding: 12px;
     }
 
-    h1 {
-        text-align: center;
-        margin-bottom: 25px;
-    }
-
-    .contrast {
-        background: white;
-        border-radius: 12px;
-        padding: 18px;
-        margin-bottom: 18px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .ipa {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 14px;
-    }
-
-    .words {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
+    .quiz-options {
+        grid-template-columns: 1fr;
     }
 
     button {
-        border: none;
-        border-radius: 8px;
-        background: #e8e8e8;
-        padding: 12px 18px;
-        font-size: 20px;
-        cursor: pointer;
-        min-width: 90px;
+        flex: 1;
     }
-
-    button:hover {
-        background: #d8d8d8;
-    }
-
-    button:active {
-        transform: scale(0.97);
-    }
-
-    .play-all {
-        width: 100%;
-        margin-top: 14px;
-        background: #222;
-        color: white;
-        font-size: 17px;
-    }
-
-    .play-all:hover {
-        background: #444;
-    }
-
-    .empty {
-        color: #777;
-        font-size: 18px;
-    }
-
-    @media (max-width: 600px) {
-        body {
-            padding: 12px;
-        }
-
-        .contrast {
-            padding: 15px;
-        }
-
-        button {
-            flex: 1;
-        }
-    }
+}
 </style>
 </head>
 
@@ -99,7 +157,34 @@
 
 <h1>Swedish Vowel Contrast Trainer</h1>
 
-<div id="app"></div>
+<div class="section">
+    <h2>Listen</h2>
+    <div id="contrasts"></div>
+</div>
+
+<div class="section">
+    <h2>Quiz</h2>
+
+    <div class="quiz">
+        <div class="score" id="score">Score: 0 / 0</div>
+
+        <div class="quiz-question" id="quizQuestion">
+            Listen and choose the word you hear.
+        </div>
+
+        <button class="quiz-play" id="quizPlay">
+            Play
+        </button>
+
+        <div class="quiz-options" id="quizOptions"></div>
+
+        <div class="quiz-result" id="quizResult"></div>
+
+        <button class="next-button" id="nextButton">
+            Next
+        </button>
+    </div>
+</div>
 
 <script>
 const contrasts = [
@@ -134,6 +219,10 @@ const contrasts = [
 ];
 
 let voices = [];
+let score = 0;
+let total = 0;
+let currentQuestion = null;
+let answered = false;
 
 function loadVoices() {
     voices = speechSynthesis.getVoices();
@@ -170,19 +259,17 @@ function playAll(words) {
     const voice = getSwedishVoice();
 
     words.forEach((word, index) => {
-        const utterance = new SpeechSynthesisUtterance(word);
-
-        utterance.lang = "sv-SE";
-        utterance.rate = 0.75;
-        utterance.pitch = 1;
-
-        if (voice) {
-            utterance.voice = voice;
-        }
-
-        utterance.onstart = () => {};
-
         setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(word);
+
+            utterance.lang = "sv-SE";
+            utterance.rate = 0.75;
+            utterance.pitch = 1;
+
+            if (voice) {
+                utterance.voice = voice;
+            }
+
             speechSynthesis.speak(utterance);
         }, index * 1300);
     });
@@ -218,11 +305,101 @@ function createContrast(item) {
     return container;
 }
 
-const app = document.getElementById("app");
-
 contrasts.forEach(item => {
-    app.appendChild(createContrast(item));
+    document
+        .getElementById("contrasts")
+        .appendChild(createContrast(item));
 });
+
+function getAllWords() {
+    return contrasts.flatMap(item => item.words);
+}
+
+function getRandomQuestion() {
+    const allWords = getAllWords();
+    const answer = allWords[Math.floor(Math.random() * allWords.length)];
+
+    const contrast = contrasts.find(item =>
+        item.words.includes(answer)
+    );
+
+    const otherWords = contrast.words
+        .filter(word => word !== answer);
+
+    const wrong = otherWords[
+        Math.floor(Math.random() * otherWords.length)
+    ];
+
+    return {
+        answer: answer,
+        options: [answer, wrong]
+    };
+}
+
+function startQuiz() {
+    currentQuestion = getRandomQuestion();
+    answered = false;
+
+    document.getElementById("quizResult").textContent = "";
+    document.getElementById("nextButton").style.display = "none";
+
+    const options = document.getElementById("quizOptions");
+    options.innerHTML = "";
+
+    currentQuestion.options
+        .sort(() => Math.random() - 0.5)
+        .forEach(word => {
+            const button = document.createElement("button");
+
+            button.className = "quiz-option";
+            button.textContent = word;
+
+            button.onclick = () => answerQuiz(button, word);
+
+            options.appendChild(button);
+        });
+
+    document.getElementById("quizPlay").onclick = () => {
+        speak(currentQuestion.answer);
+    };
+
+    speak(currentQuestion.answer);
+}
+
+function answerQuiz(button, word) {
+    if (answered) return;
+
+    answered = true;
+    total++;
+
+    const buttons = document.querySelectorAll(".quiz-option");
+
+    buttons.forEach(btn => {
+        btn.disabled = true;
+
+        if (btn.textContent === currentQuestion.answer) {
+            btn.classList.add("correct");
+        }
+    });
+
+    if (word === currentQuestion.answer) {
+        score++;
+        document.getElementById("quizResult").textContent = "Correct";
+    } else {
+        button.classList.add("wrong");
+        document.getElementById("quizResult").textContent =
+            "Answer: " + currentQuestion.answer;
+    }
+
+    document.getElementById("score").textContent =
+        "Score: " + score + " / " + total;
+
+    document.getElementById("nextButton").style.display = "block";
+}
+
+document.getElementById("nextButton").onclick = startQuiz;
+
+startQuiz();
 </script>
 
 </body>
